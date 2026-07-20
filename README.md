@@ -61,6 +61,11 @@ The authoritative machine-readable claim, assumption, and non-claim list is
 [`proof-manifest.json`](proof-manifest.json). Human-readable source commentary
 in [`Leakage.ec`](Leakage.ec) provides additional rationale.
 
+The manifest also inventories every EasyCrypt `axiom` by name, source file,
+and normalized statement SHA-256. CI rejects a new axiom, a renamed axiom, or a
+changed axiom statement until the manifest and consumer lock are explicitly
+reviewed and updated.
+
 ## Relationship to the implementation
 
 The manifest records the source repository and the last commit that changed

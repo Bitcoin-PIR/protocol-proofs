@@ -83,6 +83,7 @@ def main() -> None:
     require_type(sources, list, "sources")
     declared_paths: set[str] = set()
     code_parts: list[str] = []
+    source_code: dict[str, str] = {}
 
     for index, source in enumerate(sources):
         require_type(source, dict, f"sources[{index}]")
@@ -107,7 +108,9 @@ def main() -> None:
             fail(
                 f"stale hash for {relative}: expected {expected_hash}, got {actual_hash}"
             )
-        code_parts.append(strip_easycrypt_comments(full_path.read_text(encoding="utf-8")))
+        stripped = strip_easycrypt_comments(full_path.read_text(encoding="utf-8"))
+        code_parts.append(stripped)
+        source_code[relative] = stripped
 
     actual_paths = {path.name for path in ROOT.glob("*.ec") if path.is_file()}
     if actual_paths != declared_paths:
@@ -125,6 +128,25 @@ def main() -> None:
         fail(f"expected {expected_lemma_count} lemmas, found {len(lemmas)}")
     if len(set(lemmas)) != len(lemmas):
         fail("duplicate lemma names found")
+
+    extracted_axioms: list[dict[str, str]] = []
+    for source_path, text in source_code.items():
+        for match in re.finditer(
+            r"\baxiom\s+([A-Za-z_][A-Za-z0-9_']*)\s*:(.*?\.)", text, re.DOTALL
+        ):
+            canonical = re.sub(r"\s+", " ", match.group(0)).strip()
+            extracted_axioms.append(
+                {
+                    "name": match.group(1),
+                    "source": source_path,
+                    "statement_sha256": hashlib.sha256(
+                        canonical.encode("utf-8")
+                    ).hexdigest(),
+                }
+            )
+    extracted_axioms.sort(key=lambda item: (item["source"], item["name"]))
+    if manifest.get("axioms") != extracted_axioms:
+        fail("axiom inventory or normalized statement digest drifted")
 
     claims = manifest.get("claims")
     require_type(claims, list, "claims")

@@ -51,6 +51,73 @@
     ]
   },
   "expected_lemma_count": 39,
+  "axioms": [
+    {
+      "name": "K_chunk_pos",
+      "source": "Common.ec",
+      "statement_sha256": "74478f5a93e9e57ef54aa74fd7b083ad9c8cfd4ca2013c77723b26de5b90dcb4"
+    },
+    {
+      "name": "K_pos",
+      "source": "Common.ec",
+      "statement_sha256": "0ebb35b17eb980f7ec1df58a48be680ab4fb16f3ae0d376b4f2df4501f06817a"
+    },
+    {
+      "name": "index_cuckoo",
+      "source": "Common.ec",
+      "statement_sha256": "3c600385fd2d92df4499f6c105fb4aad6fdeef05d54c5b45de3a80a1e81c3af5"
+    },
+    {
+      "name": "L_chunk_max_per_group_nonneg",
+      "source": "Leakage.ec",
+      "statement_sha256": "b8f284f19de13ff8f228ae6783cdde558c4421d6aa7f6afd8d738a756b716506"
+    },
+    {
+      "name": "L_factors",
+      "source": "Leakage.ec",
+      "statement_sha256": "cb5f45220760b539d0158b440475e31f2742d7078f311fbc2f89f29f01cddc61"
+    },
+    {
+      "name": "L_index_max_per_group_nonneg",
+      "source": "Leakage.ec",
+      "statement_sha256": "1dca3de4bed30f7c95cf145a299fb3858000bdf8e87dc7b90f9bca8aab404889"
+    },
+    {
+      "name": "L_session_query_index_nonneg",
+      "source": "Leakage.ec",
+      "statement_sha256": "7df871e29aa410c412026b6fa5e3779a23c6a220d558413e3e158509105c9c2c"
+    },
+    {
+      "name": "index_items_per_group_pos",
+      "source": "Protocol.ec",
+      "statement_sha256": "372d8f43c8391f089447e13020bfe37119c9f4b5b95aff7a6e3635d34aed9d1e"
+    },
+    {
+      "name": "n_chunk_merkle_levels_nonneg",
+      "source": "Protocol.ec",
+      "statement_sha256": "7fbbba31bc1d885d4c9af3a6c789a8a77cddfdc9821d7d00c427ea8f94e34557"
+    },
+    {
+      "name": "n_index_merkle_levels_nonneg",
+      "source": "Protocol.ec",
+      "statement_sha256": "86c5f7cac4c1da6338ca5be3bef66a721a5ddb3465320a05d0b4c1ddf00ca927"
+    },
+    {
+      "name": "pir_server_ids_dpf",
+      "source": "Protocol_DPF.ec",
+      "statement_sha256": "ab7147fd9211fbe7c5193b7717c36defe58a455177d786f15ef9f1ca8781eb16"
+    },
+    {
+      "name": "pir_server_ids_harmony",
+      "source": "Protocol_Harmony.ec",
+      "statement_sha256": "1a90cb299b453499eb14db73c3151eba84ab2273257c95285b5a82d56fb78f80"
+    },
+    {
+      "name": "pir_server_ids_onion",
+      "source": "Protocol_Onion.ec",
+      "statement_sha256": "3e88ad2ac152597b532cfbb3229cf93f320fa4ccab6a4ecf5dde700385e7a61b"
+    }
+  ],
   "claims": [
     {
       "id": "BPIR-WIRE-FACTOR-PER-QUERY",

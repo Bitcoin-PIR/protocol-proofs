@@ -12,6 +12,7 @@
     "implementation_binding",
     "model",
     "expected_lemma_count",
+    "axioms",
     "claims",
     "assumptions",
     "explicit_non_claims",
@@ -63,6 +64,11 @@
     },
     "model": { "type": "object" },
     "expected_lemma_count": { "type": "integer", "minimum": 1 },
+    "axioms": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/axiom" },
+      "uniqueItems": true
+    },
     "claims": {
       "type": "array",
       "minItems": 1,
@@ -140,6 +146,16 @@
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         }
+      }
+    },
+    "axiom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "source", "statement_sha256"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "source": { "type": "string", "pattern": "^[^/]+\\.ec$" },
+        "statement_sha256": { "$ref": "#/$defs/sha256" }
       }
     },
     "assumption": {
