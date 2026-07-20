@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -136,11 +137,44 @@ def main() -> None:
         if (
             full_path.name in FORBIDDEN_PROOF_FILENAMES
             or full_path.suffix.lower() in FORBIDDEN_PROOF_SUFFIXES
-            or full_path.suffix.lower() in COMPILED_PROOF_SUFFIXES
         ):
             forbidden_inputs.append(relative.as_posix())
     if forbidden_inputs:
         fail(f"proof tree contains unreviewed EasyCrypt inputs: {sorted(forbidden_inputs)}")
+
+    tracked_result = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "-z"],
+        check=False,
+        capture_output=True,
+    )
+    if tracked_result.returncode != 0:
+        fail(
+            "cannot list tracked proof files: "
+            f"{tracked_result.stderr.decode(errors='replace').strip()}"
+        )
+    tracked_files = {
+        entry.decode("utf-8")
+        for entry in tracked_result.stdout.split(b"\0")
+        if entry
+    }
+    tracked_sources = {
+        path for path in tracked_files if Path(path).suffix.lower() == ".ec"
+    }
+    if tracked_sources != declared_paths:
+        fail(
+            "tracked EasyCrypt source set differs from the manifest; "
+            f"extra={sorted(tracked_sources - declared_paths)}, "
+            f"missing={sorted(declared_paths - tracked_sources)}"
+        )
+    tracked_forbidden = sorted(
+        path
+        for path in tracked_files
+        if Path(path).name in FORBIDDEN_PROOF_FILENAMES
+        or Path(path).suffix.lower()
+        in FORBIDDEN_PROOF_SUFFIXES | COMPILED_PROOF_SUFFIXES
+    )
+    if tracked_forbidden:
+        fail(f"proof commit contains unreviewed EasyCrypt inputs: {tracked_forbidden}")
 
     code = "\n".join(code_parts)
     proof_holes = sorted(set(re.findall(r"\b(?:admit|sorry|abort)\b", code)))
