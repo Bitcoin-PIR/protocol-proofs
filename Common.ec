@@ -56,7 +56,8 @@ op query_db_id : query -> db_id.
  *     the 4-byte length prefix
  *   - items — the per-round per-group / per-query item count (length
  *     and value semantics depend on `kind`; see RoundProfile in
- *     pir-sdk/src/leakage.rs for the full mapping).
+ *     the `pir_sdk::leakage` implementation surface named by the wire
+ *     contract for the full mapping).
  *
  * Concrete byte-level content is not modelled — by hypothesis the
  * cryptographic primitives produce uniformly random bytes inside fixed-

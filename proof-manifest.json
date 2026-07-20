@@ -316,7 +316,7 @@
     {
       "path": "Common.ec",
       "role": "shared-types-and-parameters",
-      "sha256": "cc846ca4f9726d132f1288a82b144c9140656108d63ff953a90ed70629036acf"
+      "sha256": "5cf2a131c42be2b3b6b82d99f2e623762fbc8f9f72a65fd581f19a1e1560efa6"
     },
     {
       "path": "ContractBinding.ec",
@@ -331,7 +331,7 @@
     {
       "path": "Protocol.ec",
       "role": "abstract-real-wire-shape-model",
-      "sha256": "66eeb435ad40d948bdbaa994c55b85f6de963b70fc33abdebb0927496764282d"
+      "sha256": "a1edc76177f299a383d9a731322bc04311f6a31eefe1810dcaedaa5f1b9e9a03"
     },
     {
       "path": "Protocol_DPF.ec",

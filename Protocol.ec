@@ -34,7 +34,8 @@ require import AllCore List Distr Int.
 (* ---------- Per-round-shape parameters ---------- *
  * Each `op` declares a wire-shape parameter as a deterministic function
  * of (backend, server, [level]). Concrete values are pinned by the
- * integration tests in pir-sdk-client/tests/leakage_integration_test.rs
+ * integration tests represented by the stable
+ * `pir_sdk_client::leakage_integration` implementation-surface id
  * — we treat them as axioms here.
  *)
 
