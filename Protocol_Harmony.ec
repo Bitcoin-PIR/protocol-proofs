@@ -43,7 +43,7 @@ qed.
 (* Harmony emits the hint-refresh round IFF `harmony_refresh_due` says
  * so. The session-position dependency is the only reason
  * `query_session_query_index q` is admitted as a leakage axis (see
- * `proofs/easycrypt/Leakage.ec` axis 3). This lemma pins the wire
+ * `Leakage.ec` axis 3). This lemma pins the wire
  * shape under the refresh-not-due case. *)
 lemma harmony_no_hint_refresh_when_not_due (db : db_id) (sess_idx : int) :
   ! harmony_refresh_due sess_idx =>

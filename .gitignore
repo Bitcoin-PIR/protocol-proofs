@@ -5,3 +5,9 @@
 
 # OCaml/dune side products if anyone runs build helpers in this dir
 _build/
+
+# Generated CI/local verification evidence
+verification-record.json
+
+# macOS metadata
+.DS_Store

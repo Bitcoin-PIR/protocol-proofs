@@ -1,214 +1,156 @@
-# BitcoinPIR EasyCrypt — Simulator-Property Spec
+# BitcoinPIR protocol proofs
 
-This directory contains the EasyCrypt formal-verification scaffolding
-for the BitcoinPIR leakage argument. The deliverable is a **spec** —
-a precise, mechanically-checked statement of what the protocol leaks
-and what it does not. The proofs are partly closed and partly stubbed
-with `admit`, in the structure described below.
+This repository contains the EasyCrypt model and mechanically checked
+simulator-property proof for the wire shape of BitcoinPIR queries.
 
-The primary value is **catching missing leakage axes**: if a maintainer
-adds a query-dependent branch to the protocol that is not covered by
-the leakage record, the proof of `simulator_property_per_query` cannot
-close — the missing axis becomes a visible, mechanical failure rather
-than a privacy bug nobody notices.
+The proof sources retain their history from
+[`Bitcoin-PIR/Bitcoin-PIR`](https://github.com/Bitcoin-PIR/Bitcoin-PIR), where
+they originally lived under `proofs/easycrypt/`.
 
-## What's modelled, what's not
+## Status
 
-**Modelled:** wire-shape — round kinds, server ids, db ids, byte
-counts, item counts. The transcript is the ordered list of these
-per-round shape descriptors.
+`make check` checks the machine-readable manifest and compiles `Theorem.ec`.
+At the extracted source snapshot, all 31 declared lemmas close and the proof
+scripts contain no `admit`, `sorry`, or `abort` command.
 
-**Not modelled (by design):**
-- **Byte content within fixed-length envelopes.** Bytes are treated
-  as ideal-primitive uniform randomness, by hypothesis indistinguish-
-  able across runs. The cryptographic ideal-primitive assumptions
-  (DPF privacy, FHE IND-CPA, PRP indistinguishability) live in the
-  primitives' own papers, not here.
-- **Timing channels.** Wall-clock latency, packet inter-arrival, CPU
-  side channels are not part of `transcript`. An adversary who
-  measures latency learns strictly more than `L`.
-- **Network-layer metadata.** TCP / TLS / WebSocket framing, IP, TLS
-  handshake. By hypothesis the adversary observes only message
-  payloads.
-- **Compression artifacts.** Per-message-deflate and TLS compression
-  are off in production; size side channels from compression are
-  excluded by hypothesis.
-- **OnionPIR LRU eviction retries.** Server-controlled, not
-  query-controlled — modelled as no-eviction.
+That statement is intentionally narrower than “BitcoinPIR is proven private.”
+This repository proves properties of an abstract wire-shape model under the
+assumptions listed in [`proof-manifest.json`](proof-manifest.json). It does not
+mechanically establish that every Rust, TypeScript, WASM, server, or deployed
+binary implements that model.
 
-See the full list of "explicit non-claims" in [Leakage.ec](Leakage.ec)
-section *EXPLICIT NON-CLAIMS*.
+## Mechanically checked claims
 
-Because byte content is not modelled, `Real.query` and `Sim.query`
-are *deterministic* functions of `(b, q)` and `(b, leak)` respectively.
-The simulator-property proof reduces to functional equality, not
-full pRHL. This is the framing introduced in the 2026-04-29 spec
-revision; it dramatically reduces proof-closure cost compared to a
-fully randomised pRHL formulation.
+The top-level proof establishes:
 
-## File map
+- per-query factorization: two queries with equal leakage records produce the
+  same modeled transcript;
+- a constructive simulator that produces the same modeled transcript using
+  only the leakage record;
+- the corresponding multi-query statements for sequences of equal length;
+- backend-specific round-count facts for DPF, HarmonyPIR, and OnionPIR.
 
-| File | Role | Lines |
-|---|---|---|
-| [Common.ec](Common.ec) | Shared abstract types (`query`, `db_id`, `transcript`, `round_kind`, `round_profile`, `backend`); protocol parameters (K=75, K_chunk=80, INDEX_CUCKOO_NUM_HASHES=2). | ~95 |
-| [Leakage.ec](Leakage.ec) | The leakage record `L : query → leakage` with four admitted axes (`index_max_items_per_group_per_level`, `chunk_max_items_per_group_per_level`, `session_query_index`, `query_db_id`); query-side accessors; the `L_factors` axiom relating accessors to `L`. Documents 4 explicit non-claims and 5 closed axes. | ~210 |
-| [Protocol.ec](Protocol.ec) | Abstract `Real` model — wire-shape parameters declared as `op X : backend -> ...`; per-section transcript fragments (info, key-register, hint-refresh, index, chunk, merkle-tops, index-merkle, chunk-merkle); the `real_transcript` op composing the fragments. The `Real_batch.query_batch` module + `real_batch_transcript = flatten ∘ map (real_transcript b)` op extends to multi-query batches. **Backend-specific axioms** (`pir_server_ids BDpf = [0; 1]`, etc.) live in the per-backend files below — see split rationale in `Protocol_DPF.ec`'s preamble. | ~210 |
-| [Protocol_DPF.ec](Protocol_DPF.ec) | DPF concrete bindings: `pir_server_ids BDpf = [0; 1]`. Specialisation lemmas: `dpf_index_segment_size = 2`, `dpf_chunk_segment_size = 2`, `dpf_no_onion_key_register`, `dpf_no_harmony_hint_refresh`. | ~70 |
-| [Protocol_Harmony.ec](Protocol_Harmony.ec) | HarmonyPIR concrete bindings: `pir_server_ids BHarmony = [0]`. Specialisation lemmas: `harmony_index_segment_size = 1`, `harmony_chunk_segment_size = 1`, `harmony_no_onion_key_register`, `harmony_no_hint_refresh_when_not_due`. | ~50 |
-| [Protocol_Onion.ec](Protocol_Onion.ec) | OnionPIR concrete bindings: `pir_server_ids BOnion = [0]`. Specialisation lemmas: `onion_index_segment_size = 1`, `onion_chunk_segment_size = 1`, `onion_emits_key_register = 1`, `onion_no_harmony_hint_refresh`. | ~50 |
-| [Simulator.ec](Simulator.ec) | The `Sim` model — same per-section composition as `Real`, but reads exclusively from `L q`. Once the body executes `leak <- L q`, every subsequent computation is a function of `leak` and `b` alone — no further reads of `q`. Pure-functional view `sim_transcript`. The `Sim_batch.query_batch` module + `sim_batch_transcript b leaks = flatten ∘ map (sim_transcript b)` op extends to multi-query batches; the procedure binds `leaks = map L qs` as the only `q`-touching step. | ~85 |
-| [Theorem.ec](Theorem.ec) | The simulator-property statement, decomposed into per-axis lemmas: (1) `L_eq` implies each accessor agrees, (2) `real_transcript` factors through `L`, (3) `real_transcript b q = sim_transcript b (L q)`, (4) bridge to `proc` view, (5) headline per-query simulator-property, (6) multi-query closure: `simulator_property_multi_query` op-form + `real_eq_sim_op_batch` + proc bridges + equiv-form analog + `Real_batch ≡ Sim_batch`. Imports the three per-backend files so `make check` validates them all. | ~340 |
+The transcript records round kind, server id, database id, request/response
+byte counts, and per-round item counts. Because payload bytes are not modeled,
+the proof is a deterministic equality proof. Interpreting it as a
+computational privacy statement additionally relies on the ideal-primitive
+assumptions for DPF, FHE, and PRP.
 
-## Status: proven vs. admitted
+The admitted leakage record contains:
 
-The spec **typechecks cleanly with all 31 lemmas closed** (`make check` exits 0; zero `admit` tactics; zero warnings).
+- INDEX Merkle maximum items per group and level;
+- CHUNK Merkle maximum items per group and level;
+- session query position, including HarmonyPIR hint-refresh timing;
+- database id.
 
-**31 of 31 lemmas mechanically closed:**
+## Explicit non-claims
 
-In `Leakage.ec`:
-- `L_eq_refl`, `L_eq_sym`, `L_eq_trans` — equivalence-relation axioms.
+This proof does not establish:
 
-In `Theorem.ec`:
-- **Per-axis projection (4 lemmas)** — `L_eq_query_db_id`, `L_eq_query_index_max`, `L_eq_query_chunk_max`, `L_eq_query_session_query_index`. **These are the heart of the simulator argument** — they say `L`-equivalent queries agree on every accessor that `Real` reads. Proof: rewrite via `L_factors` and conclude.
-- `real_transcript_factors_through_L` — wire transcript depends only on `L`. Proof: substitute the four per-axis equalities, conclude by reflexivity.
-- `real_eq_sim_op` — equational simulator construction `real_transcript b q = sim_transcript b (L q)`. Proof: rewrite via `L_factors` and simplify.
-- `Real_proc_eq_op`, `Sim_proc_eq_op` — bridge from `proc` view to `op` view. Proof: `proc; auto.` (the procs delegate to the deterministic ops).
-- `simulator_property_per_query` — headline `equiv [ Real ~ Real : L_eq q1 q2 ==> ={res} ]`. Proof: `proc; skip => />.` symbolically executes the trivial `return real_transcript b q` body, leaving `real_transcript b0 q1 = real_transcript b0 q2`, closed by `exact (real_transcript_factors_through_L b0 q1 q2 h)`.
-- `simulator_property_constructive` — headline `equiv [ Real ~ Sim : ... ==> ={res} ]`. Same pattern, closed by `exact (real_eq_sim_op b0 q0)`.
-- **Multi-query closure (5 lemmas)**:
-  - `simulator_property_multi_query` (op-form) — pairwise `L_eq` lifts to `real_batch_transcript b qs1 = real_batch_transcript b qs2`. Proof: list induction via `eq_from_nth` + `nth_map` from `List.ec`. Per-position equality reduces to `real_transcript_factors_through_L`.
-  - `real_eq_sim_op_batch` — batch real ≡ batch sim at the op level: `real_batch_transcript b qs = sim_batch_transcript b (map L qs)`. Same list-induction shape, per-position closes via `real_eq_sim_op`.
-  - `Real_batch_proc_eq_op`, `Sim_batch_proc_eq_op` — proc bridges. Proof: `proc; auto.`
-  - `simulator_property_multi_query_equiv` — equiv-form `equiv [ Real_batch ~ Real_batch : pairwise L_eq ==> ={res} ]`. Proof: `proc; skip => />` + exact of the op-form.
-  - `simulator_property_multi_query_constructive` — equiv-form `Real_batch ≡ Sim_batch`. Proof: `proc; skip => />` + exact of `real_eq_sim_op_batch`.
+- security of DPF, FHE, PRP, hash functions, or their concrete
+  implementations;
+- secrecy of payload contents outside the ideal-primitive hypothesis;
+- timing, CPU, packet-arrival, connection, TLS, WebSocket, IP, or compression
+  side-channel resistance;
+- behavior of OnionPIR retry paths after server-controlled LRU eviction;
+- correctness, memory safety, attestation, database-root validity, Merkle
+  inclusion, or result correctness;
+- mechanical correspondence between the EasyCrypt model and production code.
 
-In `Protocol_DPF.ec` / `Protocol_Harmony.ec` / `Protocol_Onion.ec` (4 lemmas each — 12 total):
-- **Per-backend specialisation lemmas** documenting concrete wire-shape facts. E.g. `dpf_index_segment_size : size (index_segment BDpf db) = 2` (the abstract `index_segment` op composed with the `pir_server_ids BDpf = [0; 1]` axiom yields exactly two rounds). These exist as documentation: a reviewer who wants to know "what does DPF emit?" reads the `Protocol_DPF.ec` lemmas instead of unfolding the abstract spec by hand. Closures: `rewrite /op size_map pir_server_ids_BACKEND` + `auto`.
+The authoritative machine-readable claim, assumption, and non-claim list is
+[`proof-manifest.json`](proof-manifest.json). Human-readable source commentary
+in [`Leakage.ec`](Leakage.ec) provides additional rationale.
 
-**Subtle gotcha caught while closing the per-query equiv lemmas.** The lemma signatures originally used parameter names `b` and `q`, which shadow the procedure parameters `b` and `q` of `Real.query` / `Sim.query`. EasyCrypt parses the unmarked `b` in the precondition `b{1} = b` as `b{1}` (defaulting to memory `&1`), making the precondition `b{1} = b{1}` — tautological. The fix is to rename the lemma parameters to `b0` and `q0`, matching the convention already established by `Real_proc_eq_op (b0 : backend)`. The same `b0` / `qs0` naming convention applies to the new multi-query equiv lemmas.
+## Relationship to the implementation
 
-**Out of scope:**
-- Closing the cryptographic ideal-primitive reductions (DPF, FHE, PRP). Those live in the primitives' papers; we cite by hypothesis.
+The manifest records the source repository and the last commit that changed
+this proof snapshot. It is bound to the raw SHA-256 of a
+`BitcoinPIR/wire-shape-contract/v1` contract generated in the product
+repository. Source history and a contract digest provide provenance and drift
+detection; they are not by themselves an implementation refinement proof.
 
-## How the simulator-property proof catches a missing axis
+The intended integration is for the product repository to generate a small,
+machine-readable wire-contract document and lock both:
 
-The discipline is encoded in the body structure:
+1. the exact `protocol-proofs` commit that passes CI; and
+2. the digest of the matching wire contract.
 
-1. `Real.query` reads `q` ONLY through the four declared accessors
-   (`query_db_id`, `query_index_max`, `query_chunk_max`,
-   `query_session_query_index`). All other reads of `q` are syntactic
-   errors at typecheck time (the accessors are the only `op`s with
-   signature `query → _`).
+The product repository must still lock the exact proof commit, manifest digest,
+contract digest, and passing verification record. A green check here alone
+means only that this proof suite passed for this repository commit.
 
-2. `Sim.query` executes `leak <- L q` as its first statement, then
-   uses **only `leak` and `b`**. Any read of `q` after this line
-   would surface as a missing parameter to a per-section helper.
+## Repository layout
 
-3. The `simulator_property_constructive` lemma asserts equality of
-   the transcripts produced by `Real` and `Sim`. The proof obligation
-   per-section is "the helper produces the same transcript when fed
-   `query_X q` vs `(L q).X`". `L_factors` discharges each.
+| Path | Role |
+|---|---|
+| `Common.ec` | Shared abstract types and public protocol parameters |
+| `Leakage.ec` | Leakage function, admitted axes, and explicit non-claims |
+| `Protocol.ec` | Abstract real wire-shape model |
+| `Simulator.ec` | Simulator using only the leakage record |
+| `Protocol_DPF.ec` | DPF backend specialization |
+| `Protocol_Harmony.ec` | HarmonyPIR backend specialization |
+| `Protocol_Onion.ec` | OnionPIR backend specialization |
+| `Theorem.ec` | Per-query and multi-query simulator theorems |
+| `proof-manifest.json` | Machine-readable claims, assumptions, toolchain, and source hashes |
+| `toolchain/Dockerfile` | Reproducible EasyCrypt verification environment |
+| `scripts/verify_manifest.py` | Manifest, source-hash, theorem, and proof-hole checks |
 
-If a future maintainer adds a Real-side branch on, say,
-`query_some_new_property q`, then:
-- They must declare `query_some_new_property : query → _` as an `op`.
-- They must extend `leakage` with the corresponding field (otherwise
-  the simulator has no way to feed the `Sim`-side helper).
-- They must extend `L_factors` to relate `L q`'s new field to the
-  accessor.
-- They must extend the per-axis agreement lemmas in Theorem.ec.
+## Reproduce the check
 
-Any one of these omissions makes `simulator_property_per_query`
-fail to close. **That's the intended semantic of the proof:** every
-query-dependent fact on the wire MUST appear in `L`, on pain of
-proof failure.
+### Pinned container (recommended)
 
-## Running the typecheck
-
-### macOS install (one-time, ~15-20 min)
+Docker is the only host dependency:
 
 ```bash
-brew install opam z3
-opam init --bare -y -a --disable-sandboxing
-opam switch create easycrypt 4.14.1 -y
-eval $(opam env --switch=easycrypt)
-opam pin add -yn easycrypt https://github.com/EasyCrypt/easycrypt.git
-opam install -y alt-ergo easycrypt
-easycrypt why3config
+make container-check
 ```
 
-### Verify
+The Dockerfile pins the EasyCrypt build image by OCI digest and installs
+EasyCrypt from an exact Git commit. The same path runs in GitHub Actions.
+
+### Existing local EasyCrypt installation
+
+If EasyCrypt is already installed:
 
 ```bash
-cd proofs/easycrypt
-eval $(opam env --switch=easycrypt)
-easycrypt -I . Theorem.ec
+make check
 ```
 
-A successful typecheck prints no errors and no warnings. The spec
-contains zero `admit` tactics; any `Error:` line (typically a
-syntactic mismatch with the EasyCrypt version) needs fixing.
+The canonical container and the original native verification baseline both
+use EasyCrypt commit `dd9bd930d45e81980e546fc835ed2022418644be`, OCaml
+4.14.1, Why3 1.8.2, and Alt-Ergo 2.6.3.
 
-### CI
+## CI evidence
 
-This directory is gitignored from CI by design — proof closure is
-multi-step and the install pulls a recent EasyCrypt from GitHub which
-makes CI slow and brittle. The spec's commit-and-PR-review of the
-*scaffolding* is the meaningful artefact today; CI integration is a
-follow-up if the proof closure progresses.
+Every push, pull request, and merge queue run executes the manifest checks and
+`easycrypt compile -I . Theorem.ec` inside the pinned toolchain. A successful
+job uploads `verification-record.json`, which binds the result to:
 
-## How to extend
+- repository commit and GitHub Actions run;
+- proof manifest digest;
+- aggregate proof-source digest;
+- pinned container base and EasyCrypt commit;
+- exact verification command.
 
-**Adding a new admitted leakage axis** (e.g. when a wire feature is
-added that the simulator cannot reproduce from the existing record):
+The record is generated only after the check succeeds. It records exit code `0`
+and states the derivation from that exit code to `result: passed`. It is evidence
+from the corresponding GitHub Actions run, not a self-authenticating statement
+merely because its JSON field says `passed`.
 
-1. Add an `op query_X : query → T` accessor to Common.ec or Leakage.ec.
-2. Add an `X : T` field to `leakage` in Leakage.ec.
-3. Extend `L_factors` to `L q = {| ... ; X = query_X q |}`.
-4. Add a new per-axis agreement lemma `L_eq_query_X` to Theorem.ec
-   (admit-stubbed initially).
-5. Update Real.query to read `query_X q` where needed; update
-   Sim.query to read `leak.`X` in the matching place.
-6. Update the lemma comment block in Leakage.ec's preamble.
+## Updating the proof
 
-**Closing an admitted axis** (e.g. when the protocol is hardened
-to no longer leak it):
+After changing any `.ec` file:
 
-1. Update the protocol's per-section helper(s) to be independent of
-   the axis.
-2. Update Real.query / Sim.query to no longer feed the axis through
-   to the helper.
-3. Remove the field from `leakage` and the corresponding entry from
-   `L_factors`.
-4. Remove the per-axis agreement lemma from Theorem.ec.
-5. Update [VERIFICATION_OVERVIEW.md](../../docs/VERIFICATION_OVERVIEW.md)
-   and [CLAUDE.md](../../CLAUDE.md) "What the Server Learns" sections.
+1. update the affected claims or assumptions in `proof-manifest.json`;
+2. refresh each changed `sources[].sha256` value;
+3. run `make check` or `make container-check`;
+4. update the product repository’s proof/contract lock when the change affects
+   the implementation contract.
 
-## Closure status
+The manifest checker rejects undeclared EasyCrypt files, stale hashes, missing
+claim theorems, changed lemma counts, and proof-hole commands outside comments.
 
-- `index_max_items_per_group_per_level` — **closed.** The INDEX Merkle
-  Group-Symmetry work (DPF / Harmony route each scripthash to its
-  `pbc_plan_rounds`-assigned group) pins this at 2 per query for
-  typical batches, independent of the input collision pattern. See
-  axis 1 in [Leakage.ec](Leakage.ec).
-- `chunk_max_items_per_group_per_level` — **closed, then deliberately
-  re-opened.** An M=16 chunk-Merkle pad closed it; Phase 4 / WS-A
-  (retired `PLAN_MERKLE_CODING.md`, `[HUMAN decision]`) removed the pad — it cost
-  ~16× chunk-layer work to hide a count that is `1` for ~99 % of
-  addresses. This axis is now an accepted, documented leak (a function
-  of the per-query real chunk count). See axis 2 in [Leakage.ec](Leakage.ec).
-- `session_query_index`, `query_db_id` — intentional public protocol
-  metadata, not closable (axes 3-4).
+## License
 
-`L` therefore stays at its current four axes; the simulator-property
-proof in [Theorem.ec](Theorem.ec) is over exactly this `L`. Note that
-found-vs-not-found stays **closed** independently of the `chunk_max`
-re-opening — via CHUNK Round-Presence Symmetry, a separate mechanism
-(see the closed-axis list in [Leakage.ec](Leakage.ec)).
-
-## Provenance
-
-Initial scaffolding: 2026-04-29 (commit `771b925`).
-L-spec amendment (3 admitted axes, 4 explicit non-claims): commit `0909bb0`.
-Body fleshout + deterministic-shape framing + `query_db_id` axis: 2026-04-29
-(this commit).
+Licensed under either Apache License 2.0 or the MIT license, at your option.
+See [`LICENSE-APACHE`](LICENSE-APACHE) and [`LICENSE-MIT`](LICENSE-MIT).

@@ -1,0 +1,289 @@
+{
+  "$schema": "schema/proof-manifest.schema.json",
+  "schema_version": 1,
+  "proof_suite": "bitcoinpir-wire-shape-simulator",
+  "title": "BitcoinPIR wire-shape simulator property",
+  "origin": {
+    "repository": "https://github.com/Bitcoin-PIR/Bitcoin-PIR",
+    "path": "proofs/easycrypt",
+    "source_content_commit": "74f2f5b20c90c301bc78fd4298f435983e13950a"
+  },
+  "implementation_binding": {
+    "status": "contract-hash-bound",
+    "repository": "https://github.com/Bitcoin-PIR/Bitcoin-PIR",
+    "contract_schema": "BitcoinPIR/wire-shape-contract/v1",
+    "contract_path": "verification/contracts/wire-shape-v1.json",
+    "wire_contract_sha256": "5e82d55dd9072a2651c5fa8e580ee19766a0b05abe461f408eb6a37a6b9a0814",
+    "explanation": "This manifest is bound to the exact raw bytes of the named wire contract. The product repository is responsible for checking that contract against its implementation surfaces; this digest binding is not itself a mechanical refinement proof from Rust or TypeScript to EasyCrypt.",
+    "required_consumer_lock_fields": [
+      "protocolProofs.commit",
+      "protocolProofs.manifestSha256",
+      "implementationContract.sha256",
+      "protocolProofs.verificationRecordSha256"
+    ]
+  },
+  "model": {
+    "observation": "Ordered wire-shape transcript for one query or a sequence of queries",
+    "fields": [
+      "round_kind",
+      "server_id",
+      "database_id",
+      "request_bytes",
+      "response_bytes",
+      "item_counts"
+    ],
+    "backends": [
+      "dpf",
+      "harmonypir",
+      "onionpir"
+    ],
+    "public_parameters": {
+      "index_groups": 75,
+      "chunk_groups": 80,
+      "index_cuckoo_hashes": 2
+    },
+    "admitted_leakage": [
+      "index_max_items_per_group_per_level",
+      "chunk_max_items_per_group_per_level",
+      "session_query_index",
+      "query_db_id"
+    ]
+  },
+  "expected_lemma_count": 31,
+  "claims": [
+    {
+      "id": "BPIR-WIRE-FACTOR-PER-QUERY",
+      "theorem": "simulator_property_per_query",
+      "status": "mechanically-checked",
+      "scope": "Within the abstract model, equal leakage records imply equal per-query wire-shape transcripts.",
+      "depends_on_assumptions": [
+        "A-LEAKAGE-PROJECTION",
+        "A-CONCRETE-WIRE-PARAMETERS",
+        "A-BACKEND-SERVER-TOPOLOGY",
+        "A-IDEAL-PRIMITIVES"
+      ]
+    },
+    {
+      "id": "BPIR-WIRE-SIMULATOR-PER-QUERY",
+      "theorem": "simulator_property_constructive",
+      "status": "mechanically-checked",
+      "scope": "Within the abstract model, the simulator using only L(q) produces the same per-query wire-shape transcript as the real model.",
+      "depends_on_assumptions": [
+        "A-LEAKAGE-PROJECTION",
+        "A-CONCRETE-WIRE-PARAMETERS",
+        "A-BACKEND-SERVER-TOPOLOGY",
+        "A-IDEAL-PRIMITIVES"
+      ]
+    },
+    {
+      "id": "BPIR-WIRE-FACTOR-MULTI-QUERY",
+      "theorem": "simulator_property_multi_query_equiv",
+      "status": "mechanically-checked",
+      "scope": "Within the abstract model, position-wise equal leakage records imply equal wire-shape transcripts for equal-length query sequences.",
+      "depends_on_assumptions": [
+        "A-LEAKAGE-PROJECTION",
+        "A-CONCRETE-WIRE-PARAMETERS",
+        "A-BACKEND-SERVER-TOPOLOGY",
+        "A-IDEAL-PRIMITIVES",
+        "A-PER-QUERY-INDEPENDENCE"
+      ]
+    },
+    {
+      "id": "BPIR-WIRE-SIMULATOR-MULTI-QUERY",
+      "theorem": "simulator_property_multi_query_constructive",
+      "status": "mechanically-checked",
+      "scope": "Within the abstract model, the sequence simulator using only map L(qs) produces the same wire-shape transcript as the real batch model.",
+      "depends_on_assumptions": [
+        "A-LEAKAGE-PROJECTION",
+        "A-CONCRETE-WIRE-PARAMETERS",
+        "A-BACKEND-SERVER-TOPOLOGY",
+        "A-IDEAL-PRIMITIVES",
+        "A-PER-QUERY-INDEPENDENCE"
+      ]
+    },
+    {
+      "id": "BPIR-DPF-INDEX-TWO-SERVERS",
+      "theorem": "dpf_index_segment_size",
+      "status": "mechanically-checked",
+      "scope": "The DPF specialization emits two modeled INDEX rounds.",
+      "depends_on_assumptions": [
+        "A-BACKEND-SERVER-TOPOLOGY"
+      ]
+    },
+    {
+      "id": "BPIR-HARMONY-INDEX-ONE-SERVER",
+      "theorem": "harmony_index_segment_size",
+      "status": "mechanically-checked",
+      "scope": "The HarmonyPIR specialization emits one modeled INDEX round.",
+      "depends_on_assumptions": [
+        "A-BACKEND-SERVER-TOPOLOGY"
+      ]
+    },
+    {
+      "id": "BPIR-ONION-INDEX-ONE-SERVER",
+      "theorem": "onion_index_segment_size",
+      "status": "mechanically-checked",
+      "scope": "The OnionPIR specialization emits one modeled INDEX round.",
+      "depends_on_assumptions": [
+        "A-BACKEND-SERVER-TOPOLOGY"
+      ]
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-IDEAL-PRIMITIVES",
+      "kind": "cryptographic",
+      "statement": "Fixed-length DPF, FHE, and PRP payloads are treated as ideal-primitive random values; their computational reductions are not proved here.",
+      "source_locations": [
+        "Common.ec",
+        "Protocol.ec",
+        "Simulator.ec"
+      ]
+    },
+    {
+      "id": "A-LEAKAGE-PROJECTION",
+      "kind": "model",
+      "statement": "L_factors exactly relates the four query accessors used by the real model to the four fields exposed to the simulator.",
+      "source_locations": [
+        "Leakage.ec"
+      ]
+    },
+    {
+      "id": "A-CONCRETE-WIRE-PARAMETERS",
+      "kind": "implementation-correspondence",
+      "statement": "Abstract request sizes, response sizes, item counts, database depths, and refresh decisions correspond to the production implementation and configuration.",
+      "source_locations": [
+        "Protocol.ec"
+      ]
+    },
+    {
+      "id": "A-BACKEND-SERVER-TOPOLOGY",
+      "kind": "model",
+      "statement": "The backend axioms bind DPF to server ids [0,1] and HarmonyPIR/OnionPIR to query server id [0].",
+      "source_locations": [
+        "Protocol_DPF.ec",
+        "Protocol_Harmony.ec",
+        "Protocol_Onion.ec"
+      ]
+    },
+    {
+      "id": "A-PER-QUERY-INDEPENDENCE",
+      "kind": "protocol",
+      "statement": "DPF and OnionPIR queries use fresh cryptographic material with no query-dependent cross-query state; HarmonyPIR cross-query hint refresh is fully represented by session_query_index.",
+      "source_locations": [
+        "Protocol.ec",
+        "Simulator.ec"
+      ]
+    },
+    {
+      "id": "A-EVICTION-FREE",
+      "kind": "environment",
+      "statement": "The modeled OnionPIR execution does not include server-controlled LRU eviction and retry behavior.",
+      "source_locations": [
+        "Leakage.ec"
+      ]
+    },
+    {
+      "id": "A-NO-COMPRESSION",
+      "kind": "deployment",
+      "statement": "WebSocket per-message compression and TLS compression remain disabled, so they do not alter modeled payload sizes.",
+      "source_locations": [
+        "Leakage.ec"
+      ]
+    }
+  ],
+  "explicit_non_claims": [
+    {
+      "id": "NC-CRYPTOGRAPHIC-REDUCTIONS",
+      "statement": "No concrete DPF, FHE, PRP, hash-function, or encryption implementation is proved secure."
+    },
+    {
+      "id": "NC-IMPLEMENTATION-REFINEMENT",
+      "statement": "No mechanical refinement proof links the EasyCrypt model to Rust, TypeScript, WASM, server binaries, or deployed UKI images."
+    },
+    {
+      "id": "NC-TIMING-AND-CPU",
+      "statement": "Wall-clock latency, packet inter-arrival timing, CPU behavior, memory access, and other timing side channels are outside the transcript."
+    },
+    {
+      "id": "NC-NETWORK-METADATA",
+      "statement": "TCP, TLS, WebSocket framing, IP addresses, handshakes, and connection metadata are not modeled."
+    },
+    {
+      "id": "NC-COMPRESSION",
+      "statement": "Compression artifacts are excluded by the no-compression deployment assumption rather than proved absent."
+    },
+    {
+      "id": "NC-ONION-LRU-RETRY",
+      "statement": "OnionPIR key re-registration and request retry after server-controlled LRU eviction are not modeled."
+    },
+    {
+      "id": "NC-RESULT-CORRECTNESS",
+      "statement": "Database roots, Merkle inclusion, returned UTXO correctness, attestation validity, memory safety, and availability are not proved."
+    }
+  ],
+  "toolchain": {
+    "dockerfile": "toolchain/Dockerfile",
+    "base_image": "ghcr.io/easycrypt/ec-build-box@sha256:5a46a4d816e763ad5de9ee9502d52158c742b9b98cc1f60c443d135a270fdb6a",
+    "platform": "linux/amd64",
+    "easycrypt_repository": "https://github.com/EasyCrypt/easycrypt",
+    "easycrypt_commit": "dd9bd930d45e81980e546fc835ed2022418644be",
+    "ocaml_version": "4.14.1",
+    "why3_version": "1.8.2",
+    "solvers": [
+      {
+        "name": "alt-ergo",
+        "version": "2.6.3"
+      }
+    ]
+  },
+  "verification": {
+    "command": "make check",
+    "top_level": "Theorem.ec",
+    "ci_workflow": ".github/workflows/proof.yml",
+    "success_condition": "Manifest checks pass and EasyCrypt exits with status 0.",
+    "evidence_artifact": "verification-record.json"
+  },
+  "sources": [
+    {
+      "path": "Common.ec",
+      "role": "shared-types-and-parameters",
+      "sha256": "cc846ca4f9726d132f1288a82b144c9140656108d63ff953a90ed70629036acf"
+    },
+    {
+      "path": "Leakage.ec",
+      "role": "leakage-function-and-non-claims",
+      "sha256": "5c88dedf906147bb40c9870fa65d200a2bd7f2c39b36ec7fd1af8a96a17e2652"
+    },
+    {
+      "path": "Protocol.ec",
+      "role": "abstract-real-wire-shape-model",
+      "sha256": "66eeb435ad40d948bdbaa994c55b85f6de963b70fc33abdebb0927496764282d"
+    },
+    {
+      "path": "Protocol_DPF.ec",
+      "role": "dpf-specialization",
+      "sha256": "89e4795d4f594bd1a6b48113b7db27e77a16834bd5db692186b354da64562db6"
+    },
+    {
+      "path": "Protocol_Harmony.ec",
+      "role": "harmonypir-specialization",
+      "sha256": "75f0a7cb1a7cb5133cc814071c78b5581b2ffd7de05ffdaebcddef53a5725b81"
+    },
+    {
+      "path": "Protocol_Onion.ec",
+      "role": "onionpir-specialization",
+      "sha256": "930bb97f52e37725679725591362c781ce414f85ebb74bba8765d3f19816837a"
+    },
+    {
+      "path": "Simulator.ec",
+      "role": "leakage-only-simulator",
+      "sha256": "570c64003f243fe855d521dcde0b050cf41be95feb746c48eff7060a07e20083"
+    },
+    {
+      "path": "Theorem.ec",
+      "role": "top-level-simulator-theorems",
+      "sha256": "26dfc4acb8c79bbb03cfb168678d92980f598d89c27ddf3dee0d19f1d91a660d"
+    }
+  ]
+}

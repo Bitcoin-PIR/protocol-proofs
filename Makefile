@@ -1,32 +1,44 @@
-# Convenience targets for the EasyCrypt simulator-property spec.
-#
-# Pre-requisites: opam switch `easycrypt` with easycrypt + alt-ergo.
-# See README.md for one-time install steps.
+# Verification entry points for the BitcoinPIR EasyCrypt proof suite.
 
-EC      = easycrypt compile
-EC_OPTS = -I .
+PYTHON             ?= python3
+EASYCRYPT          ?= easycrypt compile
+EC_OPTS            ?= -I .
+DOCKER              ?= docker
+TOOLCHAIN_IMAGE     ?= bitcoinpir/protocol-proofs-toolchain:local
+CONTAINER_PLATFORM  ?= linux/amd64
 
-# Files in dependency order.
-SOURCES = Common.ec Leakage.ec Protocol.ec Simulator.ec \
-          Protocol_DPF.ec Protocol_Harmony.ec Protocol_Onion.ec \
-          Theorem.ec
-
-.PHONY: all check verbose clean
+.PHONY: all check manifest-check proof-check verbose container-build container-check record clean
 
 all: check
 
-# Typecheck the full spec. The top-level Theorem.ec require-imports the
-# rest, so checking it checks everything.
-check:
-	$(EC) $(EC_OPTS) Theorem.ec
+check: manifest-check proof-check
 
-# Verbose typecheck (prints each successful proof step, not just errors).
-verbose:
-	$(EC) $(EC_OPTS) -p alt-ergo -p z3 Theorem.ec
+manifest-check:
+	$(PYTHON) scripts/verify_manifest.py
 
-# Per-file typecheck (useful when iterating on a specific module).
-%.check: %.ec
-	$(EC) $(EC_OPTS) $<
+proof-check:
+	$(EASYCRYPT) $(EC_OPTS) Theorem.ec
+
+verbose: manifest-check
+	$(EASYCRYPT) $(EC_OPTS) -p alt-ergo -p z3 Theorem.ec
+
+container-build:
+	$(DOCKER) build \
+		--platform $(CONTAINER_PLATFORM) \
+		-f toolchain/Dockerfile \
+		-t $(TOOLCHAIN_IMAGE) \
+		.
+
+container-check: container-build
+	$(DOCKER) run --rm \
+		--platform $(CONTAINER_PLATFORM) \
+		-v "$(CURDIR):/proofs" \
+		-w /proofs \
+		$(TOOLCHAIN_IMAGE) \
+		make check
+
+record: check
+	$(PYTHON) scripts/write_verification_record.py --output verification-record.json
 
 clean:
-	rm -f *.ecpc *.eco
+	rm -f *.ecpc *.eco *.ecaut verification-record.json

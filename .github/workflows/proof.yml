@@ -1,0 +1,51 @@
+name: Formal proof
+
+on:
+  push:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proof-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  easycrypt:
+    name: EasyCrypt wire-shape proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out proof sources
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Build pinned proof toolchain
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            --tag bitcoinpir/protocol-proofs-toolchain:ci \
+            --file toolchain/Dockerfile \
+            .
+
+      - name: Verify manifest and compile proofs
+        run: |
+          docker run --rm \
+            --platform linux/amd64 \
+            --volume "$GITHUB_WORKSPACE:/proofs" \
+            --workdir /proofs \
+            bitcoinpir/protocol-proofs-toolchain:ci \
+            make check
+
+      - name: Write verification record
+        run: python3 scripts/write_verification_record.py --output verification-record.json
+
+      - name: Upload verification record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-record-${{ github.sha }}
+          path: verification-record.json
+          if-no-files-found: error
+          retention-days: 90

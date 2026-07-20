@@ -69,20 +69,9 @@
  *
  * # Run
  *
- * Install (macOS):
- *   brew install opam z3
- *   opam init --bare -y -a --disable-sandboxing
- *   opam switch create easycrypt 4.14.1 -y
- *   eval $(opam env --switch=easycrypt)
- *   opam pin add -yn easycrypt https://github.com/EasyCrypt/easycrypt.git
- *   opam install -y alt-ergo easycrypt
- *   easycrypt why3config
- *
- * Verify:
- *   easycrypt -I . Theorem.ec
- *
- * Or via the Makefile:
- *   make -C proofs/easycrypt check
+ * Use `make container-check` for the pinned CI toolchain, or `make check`
+ * with an existing EasyCrypt installation. See README.md for the exact
+ * toolchain commit, container digest, and claim limitations.
  *
  * Successful typecheck of the spec, with all lemmas closed
  * (zero `admit`; 31 across all files, 16 in this file), pins down
