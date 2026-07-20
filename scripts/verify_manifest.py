@@ -18,6 +18,9 @@ REQUIRED_CONSUMER_LOCK_FIELDS = [
     "implementationContract.sha256",
     "protocolProofs.verificationRecordSha256",
 ]
+COMPILED_PROOF_SUFFIXES = {".eco", ".ecpc", ".ecaut"}
+FORBIDDEN_PROOF_FILENAMES = {"easycrypt.project"}
+FORBIDDEN_PROOF_SUFFIXES = {".eca"}
 
 
 def fail(message: str) -> None:
@@ -112,11 +115,32 @@ def main() -> None:
         code_parts.append(stripped)
         source_code[relative] = stripped
 
-    actual_paths = {path.name for path in ROOT.glob("*.ec") if path.is_file()}
+    actual_paths: set[str] = set()
+    for full_path in ROOT.rglob("*.ec"):
+        relative = full_path.relative_to(ROOT)
+        if ".git" in relative.parts:
+            continue
+        if not full_path.is_file() or full_path.is_symlink():
+            fail(f"proof tree contains a non-regular .ec entry: {relative}")
+        actual_paths.add(relative.as_posix())
     if actual_paths != declared_paths:
         missing = sorted(actual_paths - declared_paths)
         stale = sorted(declared_paths - actual_paths)
         fail(f"source set drifted; undeclared={missing}, missing={stale}")
+
+    forbidden_inputs: list[str] = []
+    for full_path in ROOT.rglob("*"):
+        relative = full_path.relative_to(ROOT)
+        if ".git" in relative.parts:
+            continue
+        if (
+            full_path.name in FORBIDDEN_PROOF_FILENAMES
+            or full_path.suffix.lower() in FORBIDDEN_PROOF_SUFFIXES
+            or full_path.suffix.lower() in COMPILED_PROOF_SUFFIXES
+        ):
+            forbidden_inputs.append(relative.as_posix())
+    if forbidden_inputs:
+        fail(f"proof tree contains unreviewed EasyCrypt inputs: {sorted(forbidden_inputs)}")
 
     code = "\n".join(code_parts)
     proof_holes = sorted(set(re.findall(r"\b(?:admit|sorry|abort)\b", code)))

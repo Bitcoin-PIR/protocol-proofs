@@ -66,6 +66,11 @@ and normalized statement SHA-256. CI rejects a new axiom, a renamed axiom, or a
 changed axiom statement until the manifest and consumer lock are explicitly
 reviewed and updated.
 
+The reviewed source closure consists only of the root-level `.ec` files listed
+in the manifest. CI rejects abstract-theory `.eca` files, `easycrypt.project`,
+and precompiled EasyCrypt artifacts so the fixed compile command cannot load
+an unmanifested proof input.
+
 ## Relationship to the implementation
 
 The manifest records the source repository and the last commit that changed
