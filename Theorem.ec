@@ -31,8 +31,8 @@
  *   real_transcript b q1 = real_transcript b q2   whenever L_eq q1 q2.
  *
  * The proof closure is the standard "destruct L_eq into per-axis
- * equalities, substitute into the body, conclude". All 19 lemmas
- * are now mechanically closed (no `admit`); the equiv-form lemmas
+ * equalities, substitute into the body, conclude". All 16 lemmas in
+ * this file are mechanically closed (no `admit`); the equiv-form lemmas
  * `simulator_property_per_query` and `simulator_property_constructive`
  * close via `proc; skip => />` (symbolic-execute the trivial
  * `return op(...)` body) followed by `exact` of the corresponding
