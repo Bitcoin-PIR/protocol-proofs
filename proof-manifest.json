@@ -13,8 +13,9 @@
     "repository": "https://github.com/Bitcoin-PIR/Bitcoin-PIR",
     "contract_schema": "BitcoinPIR/wire-shape-contract/v1",
     "contract_path": "verification/contracts/wire-shape-v1.json",
-    "wire_contract_sha256": "5e82d55dd9072a2651c5fa8e580ee19766a0b05abe461f408eb6a37a6b9a0814",
-    "explanation": "This manifest is bound to the exact raw bytes of the named wire contract. The product repository is responsible for checking that contract against its implementation surfaces; this digest binding is not itself a mechanical refinement proof from Rust or TypeScript to EasyCrypt.",
+    "wire_contract_sha256": "1b0df1150e885abe0446afe5b960a471c67e458905ab54f9aa8799c42bc2c673",
+    "generated_source": "ContractBinding.ec",
+    "explanation": "The product repository deterministically generates ContractBinding.ec from the named wire contract and requires it in the compiled proof closure. This binds public parameters, formal PIR server ids, round-kind coverage, and leakage projection to the contract; it is not a full refinement proof from Rust or TypeScript to EasyCrypt.",
     "required_consumer_lock_fields": [
       "protocolProofs.commit",
       "protocolProofs.manifestSha256",
@@ -49,7 +50,7 @@
       "query_db_id"
     ]
   },
-  "expected_lemma_count": 31,
+  "expected_lemma_count": 39,
   "claims": [
     {
       "id": "BPIR-WIRE-FACTOR-PER-QUERY",
@@ -251,6 +252,11 @@
       "sha256": "cc846ca4f9726d132f1288a82b144c9140656108d63ff953a90ed70629036acf"
     },
     {
+      "path": "ContractBinding.ec",
+      "role": "generated-implementation-contract-binding",
+      "sha256": "aa68a96c04ae4072b1917446f964b1777579db09c6c734bfc585015e75896b47"
+    },
+    {
       "path": "Leakage.ec",
       "role": "leakage-function-and-non-claims",
       "sha256": "5c88dedf906147bb40c9870fa65d200a2bd7f2c39b36ec7fd1af8a96a17e2652"
@@ -283,7 +289,7 @@
     {
       "path": "Theorem.ec",
       "role": "top-level-simulator-theorems",
-      "sha256": "26dfc4acb8c79bbb03cfb168678d92980f598d89c27ddf3dee0d19f1d91a660d"
+      "sha256": "e438f81f1cc5b1e69e37e986ce30e7918b73d9a804386808e14af63c875642f9"
     }
   ]
 }

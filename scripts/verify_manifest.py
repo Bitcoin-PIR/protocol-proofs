@@ -174,6 +174,8 @@ def main() -> None:
         contract_hash = binding.get("wire_contract_sha256")
         if not isinstance(contract_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", contract_hash):
             fail("contract-hash-bound manifests require wire_contract_sha256")
+        if binding.get("generated_source") != "ContractBinding.ec":
+            fail("contract-hash-bound manifests require ContractBinding.ec")
         if binding.get("required_consumer_lock_fields") != REQUIRED_CONSUMER_LOCK_FIELDS:
             fail("required_consumer_lock_fields does not match the v1 consumer lock schema")
 

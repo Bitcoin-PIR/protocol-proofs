@@ -74,7 +74,7 @@
  * toolchain commit, container digest, and claim limitations.
  *
  * Successful typecheck of the spec, with all lemmas closed
- * (zero `admit`; 31 across all files, 16 in this file), pins down
+ * (zero `admit`; 39 across all files, 16 in this file), pins down
  * (a) the leakage record, (b) the protocol's per-section structure,
  * (c) the exact proof obligations that close the simulator argument,
  * and (d) a mechanically verified proof of those obligations.
@@ -82,6 +82,7 @@
 
 require import Common Leakage Protocol Simulator.
 require import Protocol_DPF Protocol_Harmony Protocol_Onion.
+require import ContractBinding.
 require import AllCore List Distr Int.
 
 (* ---------------------------------------------------------------------- *

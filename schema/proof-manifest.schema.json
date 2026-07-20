@@ -37,7 +37,7 @@
     "implementation_binding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "repository", "contract_schema", "contract_path", "wire_contract_sha256", "explanation", "required_consumer_lock_fields"],
+      "required": ["status", "repository", "contract_schema", "contract_path", "wire_contract_sha256", "generated_source", "explanation", "required_consumer_lock_fields"],
       "properties": {
         "status": { "enum": ["not-mechanized", "contract-hash-bound"] },
         "repository": { "type": "string", "format": "uri" },
@@ -49,6 +49,7 @@
             { "type": "null" }
           ]
         },
+        "generated_source": { "const": "ContractBinding.ec" },
         "explanation": { "type": "string", "minLength": 1 },
         "required_consumer_lock_fields": {
           "const": [

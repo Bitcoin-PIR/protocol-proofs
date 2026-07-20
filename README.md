@@ -10,7 +10,7 @@ they originally lived under `proofs/easycrypt/`.
 ## Status
 
 `make check` checks the machine-readable manifest and compiles `Theorem.ec`.
-At the extracted source snapshot, all 31 declared lemmas close and the proof
+At the extracted source snapshot, all 39 declared lemmas close and the proof
 scripts contain no `admit`, `sorry`, or `abort` command.
 
 That statement is intentionally narrower than “BitcoinPIR is proven private.”
@@ -79,11 +79,18 @@ The product repository must still lock the exact proof commit, manifest digest,
 contract digest, and passing verification record. A green check here alone
 means only that this proof suite passed for this repository commit.
 
+The product repository independently regenerates `ContractBinding.ec` from its
+wire contract, compares the exact bytes, validates the complete source/import
+set, and compiles `Theorem.ec` using its own digest-locked verifier. The proof
+repository's Makefile, Dockerfile, and verification record are not treated as
+the production trust root.
+
 ## Repository layout
 
 | Path | Role |
 |---|---|
 | `Common.ec` | Shared abstract types and public protocol parameters |
+| `ContractBinding.ec` | Generated, compiled binding to the product wire contract |
 | `Leakage.ec` | Leakage function, admitted axes, and explicit non-claims |
 | `Protocol.ec` | Abstract real wire-shape model |
 | `Simulator.ec` | Simulator using only the leakage record |

@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out proof sources
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Build pinned proof toolchain
         run: |
@@ -34,7 +36,7 @@ jobs:
         run: |
           docker run --rm \
             --platform linux/amd64 \
-            --volume "$GITHUB_WORKSPACE:/proofs" \
+            --volume "$GITHUB_WORKSPACE:/proofs:ro" \
             --workdir /proofs \
             bitcoinpir/protocol-proofs-toolchain:ci \
             make check
