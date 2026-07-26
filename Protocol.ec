@@ -23,7 +23,7 @@
  *    (BDpf / BHarmony / BOnion) because the round-sequence shape
  *    differs (DPF emits per-server x2; OnionPIR is single-server;
  *    Harmony has a hint-server side band). The body branches on
- *    `b` and reads from `q` only via the four query accessors
+ *    `b` and reads from `q` only via the declared query accessors
  *    declared in Common.ec / Leakage.ec; that disciplined access is
  *    what `simulator_property_per_query` turns into a proof.
  * --------------------------------------------------------------------- *)
@@ -50,6 +50,23 @@ op onion_key_register_response_bytes : int.
 (* HarmonyHintRefresh round (Harmony only). Server-id 1 (hint server). *)
 op harmony_hint_refresh_request_bytes  : int.
 op harmony_hint_refresh_response_bytes : int.
+
+(* Payment V1 authorization.  The request is one exact secure-channel
+ * application record for every method/scope/operation/proof length in the
+ * 16-KiB class.  V1 responses remain variable-length, so the response-shape
+ * accessor is admitted below. *)
+op service_auth_request_opcode : int = 14.
+op service_auth_response_opcode : int = 14.
+op service_auth_padding_class_wire_id : int = 1.
+op service_auth_body_bytes : int = 16384.
+op service_auth_canonical_padding_byte : int = 0.
+op service_auth_inner_plaintext_bytes : int = 16385.
+op service_auth_sealed_payload_bytes : int = 16410.
+op service_auth_application_record_bytes : int = 16414.
+op service_auth_secure_channel_required : bool = true.
+op service_auth_response_fixed_length : bool = false.
+op service_auth_result_shape_observable_from_ciphertext_length : bool = true.
+op service_auth_response_bytes : authorization_result_shape -> int.
 
 (* Index round. Two servers for DPF, one for the others. *)
 op index_request_bytes    : backend -> int -> int.   (* (b, server) *)
@@ -106,6 +123,14 @@ op pir_server_ids : backend -> int list.
  * other query property. *)
 op harmony_refresh_due : int -> bool.
 
+(* A DPF authorization is independently presented to both providers.  A
+ * Harmony query presents to the query provider and, when the modeled hint
+ * refresh occurs, independently to the hint provider. *)
+op service_auth_server_ids (b : backend) (sess_idx : int) : int list =
+  if b = BHarmony /\ harmony_refresh_due sess_idx
+  then [0; 1]
+  else pir_server_ids b.
+
 (* ---------- Round-profile constructors ---------- *
  * Convenience ops that build a `round_profile` value from its
  * shape parameters. Body code below uses these to keep the
@@ -115,13 +140,38 @@ op build_payload_round
    (k : round_kind) (server : int) (db : db_id)
    (req resp : int) (items : int list) : round_profile =
   {| kind = k; server_id = server; db_id_opt = Some db;
-     request_bytes = req; response_bytes = resp; items = items; |}.
+     request_bytes = req; response_bytes = resp; items = items;
+     authorization_scheme_opt = None;
+     authorization_scope_id_opt = None;
+     authorization_operation_opt = None;
+     authorization_timing_opt = None;
+     authorization_result_shape_opt = None; |}.
 
 op build_meta_round
    (k : round_kind) (server : int) (db_opt : db_id option)
    (req resp : int) : round_profile =
   {| kind = k; server_id = server; db_id_opt = db_opt;
-     request_bytes = req; response_bytes = resp; items = []; |}.
+     request_bytes = req; response_bytes = resp; items = [];
+     authorization_scheme_opt = None;
+     authorization_scope_id_opt = None;
+     authorization_operation_opt = None;
+     authorization_timing_opt = None;
+     authorization_result_shape_opt = None; |}.
+
+op build_service_auth_round
+   (server : int) (db : db_id)
+   (scheme : authorization_scheme) (scope : service_scope_id)
+   (operation : authorization_operation) (timing : authorization_timing)
+   (result_shape : authorization_result_shape) : round_profile =
+  {| kind = RServiceAuthorization; server_id = server; db_id_opt = Some db;
+     request_bytes = service_auth_application_record_bytes;
+     response_bytes = service_auth_response_bytes result_shape;
+     items = [];
+     authorization_scheme_opt = Some scheme;
+     authorization_scope_id_opt = Some scope;
+     authorization_operation_opt = Some operation;
+     authorization_timing_opt = Some timing;
+     authorization_result_shape_opt = Some result_shape; |}.
 
 (* ---------- Per-section transcript fragments ---------- *
  * Each helper builds the segment of the transcript for a specific
@@ -136,6 +186,27 @@ op build_meta_round
 (* Info round: deterministic, no query content. *)
 op info_segment (b : backend) : transcript =
   [build_meta_round RInfo 0 None (info_request_bytes b) (info_response_bytes b)].
+
+op service_auth_segment
+   (b : backend) (db : db_id) (sess_idx : int)
+   (scheme_by_server : int -> authorization_scheme)
+   (scope_by_server : int -> service_scope_id)
+   (operation_by_server : int -> authorization_operation)
+   (timing_by_server : int -> authorization_timing)
+   (result_shape_by_server : int -> authorization_result_shape) : transcript =
+  map (fun s => build_service_auth_round s db
+         (scheme_by_server s) (scope_by_server s) (operation_by_server s)
+         (timing_by_server s) (result_shape_by_server s))
+      (service_auth_server_ids b sess_idx).
+
+lemma service_auth_request_shape_fixed
+   (server : int) (db : db_id)
+   (scheme : authorization_scheme) (scope : service_scope_id)
+   (operation : authorization_operation) (timing : authorization_timing)
+   (result_shape : authorization_result_shape) :
+  (build_service_auth_round server db scheme scope operation timing result_shape).`request_bytes
+  = 16414.
+proof. by trivial. qed.
 
 (* OnionKeyRegister: only Onion, once per session × db. We model the
  * always-fires case (no-prior-state). *)
@@ -230,8 +301,8 @@ op chunk_merkle_segment (b : backend) (db : db_id) (chunk_max : int) : transcrip
  * `Real(b).query(q)` runs a full PIR query and returns the
  * server-observable transcript. The body is a deterministic
  * concatenation of the per-section helpers above, each of which
- * reads from `q` only via the four declared accessors:
- *   query_db_id, query_index_max, query_chunk_max, query_session_query_index.
+ * reads from `q` only via the declared PIR and independently server-indexed
+ * Payment V1 authorization accessors.
  *
  * Whenever you add a Real-side branch on some other query property,
  * you MUST first add the property as an accessor (Common.ec) and to
@@ -251,6 +322,12 @@ module type ProtocolRunner = {
  *)
 op real_transcript (b : backend) (q : query) : transcript =
      info_segment b
+  ++ service_auth_segment b (query_db_id q) (query_session_query_index q)
+       (query_authorization_scheme q)
+       (query_authorization_scope_id q)
+       (query_authorization_operation q)
+       (query_authorization_timing q)
+       (query_authorization_result_shape q)
   ++ onion_key_register_segment b (query_db_id q)
   ++ harmony_hint_refresh_segment b (query_db_id q) (query_session_query_index q)
   ++ index_segment b (query_db_id q)

@@ -10,7 +10,7 @@ they originally lived under `proofs/easycrypt/`.
 ## Status
 
 `make check` checks the machine-readable manifest and compiles `Theorem.ec`.
-At the extracted source snapshot, all 39 declared lemmas close and the proof
+At the current source snapshot, all 56 declared lemmas close and the proof
 scripts contain no `admit`, `sorry`, or `abort` command.
 
 That statement is intentionally narrower than “BitcoinPIR is proven private.”
@@ -28,6 +28,8 @@ The top-level proof establishes:
 - a constructive simulator that produces the same modeled transcript using
   only the leakage record;
 - the corresponding multi-query statements for sequences of equal length;
+- a Payment V1 authorization round whose secure-channel application request is
+  fixed at 16,414 bytes independently for every logical provider;
 - backend-specific round-count facts for DPF, HarmonyPIR, and OnionPIR.
 
 The transcript records round kind, server id, database id, request/response
@@ -42,6 +44,16 @@ The admitted leakage record contains:
 - CHUNK Merkle maximum items per group and level;
 - session query position, including HarmonyPIR hint-refresh timing;
 - database id.
+- authorization scheme, provider-local scope, operation, event timing and
+  result shape, each indexed independently by logical server id.
+
+The authorization observer boundary is intentionally asymmetric. A network
+observer without channel keys sees the fixed request size, authorization
+occurrence/timing, and the variable V1 response shape; it does not learn method,
+scope, operation or proof length from request size. The provider decrypts its
+own request and necessarily learns its method, scope, operation, credential
+presentation and arrival time. The proof does not claim those provider-visible
+fields are hidden.
 
 ## Explicit non-claims
 
@@ -50,8 +62,9 @@ This proof does not establish:
 - security of DPF, FHE, PRP, hash functions, or their concrete
   implementations;
 - secrecy of payload contents outside the ideal-primitive hypothesis;
-- timing, CPU, packet-arrival, connection, TLS, WebSocket, IP, or compression
-  side-channel resistance;
+- timing beyond the explicitly admitted authorization event time, CPU,
+  packet-arrival, connection, TLS, WebSocket, IP, or compression side-channel
+  resistance;
 - behavior of OnionPIR retry paths after server-controlled LRU eviction;
 - correctness, memory safety, attestation, database-root validity, Merkle
   inclusion, or result correctness;

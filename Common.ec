@@ -44,7 +44,21 @@ axiom index_cuckoo : 2 <= index_cuckoo_num_hashes.
 type query.
 type db_id.
 
+(* Payment V1 authorization is provider-local.  The functions below are
+ * indexed by the logical server id so the model never assumes that two PIR
+ * providers chose the same method, scope, operation, timing, or result shape. *)
+type authorization_scheme.
+type service_scope_id.
+type authorization_operation.
+type authorization_timing.
+type authorization_result_shape.
+
 op query_db_id : query -> db_id.
+op query_authorization_scheme : query -> int -> authorization_scheme.
+op query_authorization_scope_id : query -> int -> service_scope_id.
+op query_authorization_operation : query -> int -> authorization_operation.
+op query_authorization_timing : query -> int -> authorization_timing.
+op query_authorization_result_shape : query -> int -> authorization_result_shape.
 
 (* ---------- Wire transcript ---------- *
  * The server-observable transcript is a list of per-round events.
@@ -72,6 +86,7 @@ type round_kind = [
   | RHarmonyHintRefresh
   | ROnionKeyRegister
   | RInfo
+  | RServiceAuthorization
   | RMerkleTreeTops
 ].
 
@@ -82,6 +97,11 @@ type round_profile = {
   request_bytes  : int;
   response_bytes : int;
   items          : int list;
+  authorization_scheme_opt      : authorization_scheme option;
+  authorization_scope_id_opt    : service_scope_id option;
+  authorization_operation_opt   : authorization_operation option;
+  authorization_timing_opt      : authorization_timing option;
+  authorization_result_shape_opt : authorization_result_shape option;
 }.
 
 type transcript = round_profile list.

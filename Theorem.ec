@@ -74,7 +74,7 @@
  * toolchain commit, container digest, and claim limitations.
  *
  * Successful typecheck of the spec, with all lemmas closed
- * (zero `admit`; 39 across all files, 16 in this file), pins down
+ * (zero `admit`; 56 across all files), pins down
  * (a) the leakage record, (b) the protocol's per-section structure,
  * (c) the exact proof obligations that close the simulator argument,
  * and (d) a mechanically verified proof of those obligations.
@@ -88,13 +88,13 @@ require import AllCore List Distr Int.
 (* ---------------------------------------------------------------------- *
  * Step 1 — query accessors agree under L_eq.
  *
- * Each per-axis accessor (query_db_id, query_index_max, query_chunk_max,
- * query_session_query_index) projects the corresponding field of
+ * Each PIR accessor and each independently server-indexed Payment V1
+ * authorization accessor projects the corresponding field of
  * `L q`. So if `L q1 = L q2`, every accessor agrees on q1 and q2.
  *
- * These four lemmas are the heart of the simulator argument: any
+ * These projection lemmas are the heart of the simulator argument: any
  * Real-side branch that depends on a query property OUTSIDE of these
- * four would need a fifth lemma here to close — and the absence of a
+ * declared axes would need another lemma here to close — and the absence of a
  * matching axis in `leakage` would make that fifth lemma unprovable.
  * Exactly the missing-axis check Kani / integration tests cannot give
  * us mechanically.
@@ -139,10 +139,60 @@ proof.
   by rewrite !L_factors /= in hp.
 qed.
 
+lemma L_eq_query_authorization_scheme (q1 q2 : query) :
+  L_eq q1 q2 =>
+  query_authorization_scheme q1 = query_authorization_scheme q2.
+proof.
+  rewrite /L_eq => heq.
+  have hp : (L q1).`authorization_scheme_by_server =
+            (L q2).`authorization_scheme_by_server by rewrite heq.
+  by rewrite !L_factors /= in hp.
+qed.
+
+lemma L_eq_query_authorization_scope_id (q1 q2 : query) :
+  L_eq q1 q2 =>
+  query_authorization_scope_id q1 = query_authorization_scope_id q2.
+proof.
+  rewrite /L_eq => heq.
+  have hp : (L q1).`authorization_scope_id_by_server =
+            (L q2).`authorization_scope_id_by_server by rewrite heq.
+  by rewrite !L_factors /= in hp.
+qed.
+
+lemma L_eq_query_authorization_operation (q1 q2 : query) :
+  L_eq q1 q2 =>
+  query_authorization_operation q1 = query_authorization_operation q2.
+proof.
+  rewrite /L_eq => heq.
+  have hp : (L q1).`authorization_operation_by_server =
+            (L q2).`authorization_operation_by_server by rewrite heq.
+  by rewrite !L_factors /= in hp.
+qed.
+
+lemma L_eq_query_authorization_timing (q1 q2 : query) :
+  L_eq q1 q2 =>
+  query_authorization_timing q1 = query_authorization_timing q2.
+proof.
+  rewrite /L_eq => heq.
+  have hp : (L q1).`authorization_timing_by_server =
+            (L q2).`authorization_timing_by_server by rewrite heq.
+  by rewrite !L_factors /= in hp.
+qed.
+
+lemma L_eq_query_authorization_result_shape (q1 q2 : query) :
+  L_eq q1 q2 =>
+  query_authorization_result_shape q1 = query_authorization_result_shape q2.
+proof.
+  rewrite /L_eq => heq.
+  have hp : (L q1).`authorization_result_shape_by_server =
+            (L q2).`authorization_result_shape_by_server by rewrite heq.
+  by rewrite !L_factors /= in hp.
+qed.
+
 (* ---------------------------------------------------------------------- *
  * Step 2 — `real_transcript` factors through `L`.
  *
- * Given the four per-axis lemmas above, equality of the deterministic
+ * Given the per-axis lemmas above, equality of the deterministic
  * `real_transcript b q1` and `real_transcript b q2` follows by
  * substituting along each accessor. The proof is mostly mechanical:
  * unfold `real_transcript`, rewrite each accessor application, and
@@ -166,7 +216,12 @@ proof.
   have hidx := L_eq_query_index_max q1 q2 h.
   have hck  := L_eq_query_chunk_max q1 q2 h.
   have hs   := L_eq_query_session_query_index q1 q2 h.
-  by rewrite /real_transcript hdb hidx hck hs.
+  have has  := L_eq_query_authorization_scheme q1 q2 h.
+  have hac  := L_eq_query_authorization_scope_id q1 q2 h.
+  have hao  := L_eq_query_authorization_operation q1 q2 h.
+  have hat  := L_eq_query_authorization_timing q1 q2 h.
+  have har  := L_eq_query_authorization_result_shape q1 q2 h.
+  by rewrite /real_transcript hdb hidx hck hs has hac hao hat har.
 qed.
 
 (* ---------------------------------------------------------------------- *

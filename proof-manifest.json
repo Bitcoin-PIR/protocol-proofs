@@ -2,7 +2,7 @@
   "$schema": "schema/proof-manifest.schema.json",
   "schema_version": 1,
   "proof_suite": "bitcoinpir-wire-shape-simulator",
-  "title": "BitcoinPIR wire-shape simulator property",
+  "title": "BitcoinPIR PIR and Payment V1 wire-shape simulator property",
   "origin": {
     "repository": "https://github.com/Bitcoin-PIR/Bitcoin-PIR",
     "path": "proofs/easycrypt",
@@ -13,9 +13,9 @@
     "repository": "https://github.com/Bitcoin-PIR/Bitcoin-PIR",
     "contract_schema": "BitcoinPIR/wire-shape-contract/v1",
     "contract_path": "verification/contracts/wire-shape-v1.json",
-    "wire_contract_sha256": "1b0df1150e885abe0446afe5b960a471c67e458905ab54f9aa8799c42bc2c673",
+    "wire_contract_sha256": "648227ffba4946b5adc55291bdb77eb452d93a5c03c553a17dc6f5d053b97bf7",
     "generated_source": "ContractBinding.ec",
-    "explanation": "The product repository deterministically generates ContractBinding.ec from the named wire contract and requires it in the compiled proof closure. This binds public parameters, formal PIR server ids, round-kind coverage, and leakage projection to the contract; it is not a full refinement proof from Rust or TypeScript to EasyCrypt.",
+    "explanation": "The product repository deterministically generates ContractBinding.ec from the named wire contract and requires it in the compiled proof closure. This binds public parameters, formal PIR server ids, Payment V1 authorization constants, round-kind coverage, and the per-server leakage projection to the contract; product-side compiled Rust tests separately bind the canonical padding and secure-channel record dimensions. It is not a full refinement proof from Rust or TypeScript to EasyCrypt.",
     "required_consumer_lock_fields": [
       "protocolProofs.commit",
       "protocolProofs.manifestSha256",
@@ -24,15 +24,45 @@
     ]
   },
   "model": {
-    "observation": "Ordered wire-shape transcript for one query or a sequence of queries",
+    "observation": "Ordered provider-visible PIR and Payment V1 authorization transcript for one query or a sequence of queries; the authorization request byte count is also the no-channel-key network-observer projection",
     "fields": [
       "round_kind",
       "server_id",
       "database_id",
       "request_bytes",
       "response_bytes",
-      "item_counts"
+      "item_counts",
+      "authorization_scheme",
+      "service_scope_id",
+      "authorization_operation",
+      "authorization_timing",
+      "authorization_result_shape"
     ],
+    "observer_boundaries": {
+      "network_without_channel_keys": {
+        "fixed_request_application_record_bytes": 16414,
+        "request_shape_hides": [
+          "authorization_scheme",
+          "service_scope_id",
+          "authorization_operation",
+          "credential_proof_length"
+        ],
+        "admitted_leakage": [
+          "authorization_occurrence_and_timing",
+          "authorization_result_shape"
+        ]
+      },
+      "provider_after_channel_decryption": {
+        "necessarily_visible": [
+          "authorization_scheme",
+          "service_scope_id",
+          "authorization_operation",
+          "credential_presentation",
+          "authorization_timing",
+          "authorization_result"
+        ]
+      }
+    },
     "backends": [
       "dpf",
       "harmonypir",
@@ -47,10 +77,15 @@
       "index_max_items_per_group_per_level",
       "chunk_max_items_per_group_per_level",
       "session_query_index",
-      "query_db_id"
+      "query_db_id",
+      "authorization_scheme_by_server",
+      "authorization_scope_id_by_server",
+      "authorization_operation_by_server",
+      "authorization_timing_by_server",
+      "authorization_result_shape_by_server"
     ]
   },
-  "expected_lemma_count": 39,
+  "expected_lemma_count": 56,
   "axioms": [
     {
       "name": "K_chunk_pos",
@@ -75,7 +110,7 @@
     {
       "name": "L_factors",
       "source": "Leakage.ec",
-      "statement_sha256": "cb5f45220760b539d0158b440475e31f2742d7078f311fbc2f89f29f01cddc61"
+      "statement_sha256": "16a13491e2aae2452b0b055cda1a7fabf6c63d161c812c092141f52d406da9db"
     },
     {
       "name": "L_index_max_per_group_nonneg",
@@ -119,6 +154,16 @@
     }
   ],
   "claims": [
+    {
+      "id": "BPIR-PAYMENT-V1-AUTH-REQUEST-SHAPE",
+      "theorem": "service_auth_request_shape_fixed",
+      "status": "mechanically-checked",
+      "scope": "For a network observer without channel keys, every per-provider Payment V1 authorization request has the same 16,414-byte application-record shape regardless of method, scope, operation, proof length, timing or result shape. This is only a request-shape claim: occurrence/timing and variable response shape remain visible, while the provider decrypts and necessarily sees method, scope, operation, credential presentation, timing and result.",
+      "depends_on_assumptions": [
+        "A-CONCRETE-WIRE-PARAMETERS",
+        "A-NO-COMPRESSION"
+      ]
+    },
     {
       "id": "BPIR-WIRE-FACTOR-PER-QUERY",
       "theorem": "simulator_property_per_query",
@@ -211,7 +256,7 @@
     {
       "id": "A-LEAKAGE-PROJECTION",
       "kind": "model",
-      "statement": "L_factors exactly relates the four query accessors used by the real model to the four fields exposed to the simulator.",
+      "statement": "L_factors exactly relates the four PIR query accessors and five independently server-indexed Payment V1 authorization accessors used by the real model to the nine fields exposed to the simulator.",
       "source_locations": [
         "Leakage.ec"
       ]
@@ -219,7 +264,7 @@
     {
       "id": "A-CONCRETE-WIRE-PARAMETERS",
       "kind": "implementation-correspondence",
-      "statement": "Abstract request sizes, response sizes, item counts, database depths, and refresh decisions correspond to the production implementation and configuration.",
+      "statement": "Abstract PIR request sizes, response sizes, item counts, database depths and refresh decisions, plus Payment V1 authorization framing and response-shape mapping, correspond to the production implementation and configuration.",
       "source_locations": [
         "Protocol.ec"
       ]
@@ -271,7 +316,7 @@
     },
     {
       "id": "NC-TIMING-AND-CPU",
-      "statement": "Wall-clock latency, packet inter-arrival timing, CPU behavior, memory access, and other timing side channels are outside the transcript."
+      "statement": "Provider-visible Payment V1 authorization event timing is explicitly admitted. Finer wall-clock latency, packet inter-arrival timing, CPU behavior, memory access, and other timing side channels remain outside the transcript."
     },
     {
       "id": "NC-NETWORK-METADATA",
@@ -316,22 +361,22 @@
     {
       "path": "Common.ec",
       "role": "shared-types-and-parameters",
-      "sha256": "5cf2a131c42be2b3b6b82d99f2e623762fbc8f9f72a65fd581f19a1e1560efa6"
+      "sha256": "857bf59907d1877d8ae8ce0b6ea6823426de7c5fb11c20ec7d325e19b31cfd37"
     },
     {
       "path": "ContractBinding.ec",
       "role": "generated-implementation-contract-binding",
-      "sha256": "aa68a96c04ae4072b1917446f964b1777579db09c6c734bfc585015e75896b47"
+      "sha256": "a5088d0a6e9fbf51884a18824c14fc8188f5c633a2198b9c8155bdb667c50328"
     },
     {
       "path": "Leakage.ec",
       "role": "leakage-function-and-non-claims",
-      "sha256": "5c88dedf906147bb40c9870fa65d200a2bd7f2c39b36ec7fd1af8a96a17e2652"
+      "sha256": "38da791401dce3192d7dfb1c09cc85258e5cb65e98046f6e832fbb982493e2a0"
     },
     {
       "path": "Protocol.ec",
       "role": "abstract-real-wire-shape-model",
-      "sha256": "a1edc76177f299a383d9a731322bc04311f6a31eefe1810dcaedaa5f1b9e9a03"
+      "sha256": "24f5bf269a2ac36d9f6534708dc94e9bd51e54b4aa3629be4d5dfb56ce009283"
     },
     {
       "path": "Protocol_DPF.ec",
@@ -351,12 +396,12 @@
     {
       "path": "Simulator.ec",
       "role": "leakage-only-simulator",
-      "sha256": "570c64003f243fe855d521dcde0b050cf41be95feb746c48eff7060a07e20083"
+      "sha256": "e103854fd8ffc4a9acfeba0d9750a5fc7bf9f96f4645c73f1b546b805678140f"
     },
     {
       "path": "Theorem.ec",
       "role": "top-level-simulator-theorems",
-      "sha256": "dde6b59e87942331ae749130c2c468410482a4c7bd843ef4d1399a3061ca3f9c"
+      "sha256": "0ecbf792d9ff375100034a92de54a7271485f5060beaca003014564ce0bd92b6"
     }
   ]
 }

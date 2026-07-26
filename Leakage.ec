@@ -149,6 +149,18 @@
  *      Closure path: none required — this is intentional public
  *      protocol metadata, not a side channel.
  *
+ *   5-9. Payment V1 authorization projection, indexed by logical server id.
+ *      authorization_scheme_by_server, authorization_scope_id_by_server,
+ *      authorization_operation_by_server, authorization_timing_by_server and
+ *      authorization_result_shape_by_server are deliberately admitted.  Each
+ *      provider decrypts its own authorization request and therefore learns
+ *      its selected method, provider-local scope and operation; it also knows
+ *      the request arrival time and result it emits.  Indexing by server keeps
+ *      the two-provider model from assuming a shared method, key, scope, token
+ *      or issuer.  A no-key network observer sees one fixed request record
+ *      length but still sees occurrence/timing and the variable V1 response
+ *      shape.
+ *
  * --------------------------------------------------------------------- *
  *  CLOSED AXES (must be obligations the proof discharges)
  * --------------------------------------------------------------------- *
@@ -168,12 +180,12 @@
  *  EXPLICIT NON-CLAIMS (out of scope)
  * --------------------------------------------------------------------- *
  *
- *   (a) Timing channels.
- *       The transcript modelled here is wire-shape only. Wall-clock
- *       latency, packet inter-arrival, and CPU side channels are not
- *       part of `transcript`, so the security claim is timing-
- *       oblivious. An adversary who measures latency learns strictly
- *       more than `L`. Closure: separate timing analysis (e.g.
+ *   (a) Timing channels beyond the admitted authorization event time.
+ *       The provider-visible authorization arrival/order value is explicitly
+ *       carried in `L`. Wall-clock backend latency, packet inter-arrival, and
+ *       CPU side channels are otherwise not part of `transcript`, so an
+ *       adversary measuring those channels learns strictly more than `L`.
+ *       Closure: separate timing analysis (e.g.
  *       constant-time crypto primitives, padding to fixed wall-
  *       clock duration). Out of scope here.
  *
@@ -216,6 +228,11 @@ type leakage = {
   chunk_max_items_per_group_per_level : int;
   session_query_index                 : int;
   query_db_id                         : db_id;
+  authorization_scheme_by_server      : int -> authorization_scheme;
+  authorization_scope_id_by_server    : int -> service_scope_id;
+  authorization_operation_by_server   : int -> authorization_operation;
+  authorization_timing_by_server      : int -> authorization_timing;
+  authorization_result_shape_by_server : int -> authorization_result_shape;
 }.
 
 (* The leakage function. Declared abstractly: the proof obligation
@@ -253,6 +270,11 @@ axiom L_factors :
              chunk_max_items_per_group_per_level = query_chunk_max q;
              session_query_index                 = query_session_query_index q;
              query_db_id                         = query_db_id q;
+             authorization_scheme_by_server      = query_authorization_scheme q;
+             authorization_scope_id_by_server    = query_authorization_scope_id q;
+             authorization_operation_by_server   = query_authorization_operation q;
+             authorization_timing_by_server      = query_authorization_timing q;
+             authorization_result_shape_by_server = query_authorization_result_shape q;
           |}.
 
 (* ---------- Range axioms ---------- *
