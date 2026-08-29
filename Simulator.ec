@@ -11,8 +11,7 @@
  *      property argument.
  *   2. Compose the same per-section transcript fragments declared in
  *      `Protocol.ec`, but feed each fragment its needed inputs from
- *      `leak` (the four PIR axes plus five independently server-indexed
- *      Payment V1 authorization axes)
+ *      `leak` (the four PIR axes)
  *      instead of from `q`.
  *
  * Because byte content is not modelled in this spec, no actual
@@ -48,12 +47,6 @@ require import AllCore List Distr Int.
  *)
 op sim_transcript (b : backend) (leak : leakage) : transcript =
      info_segment b
-  ++ service_auth_segment b leak.`query_db_id leak.`session_query_index
-       leak.`authorization_scheme_by_server
-       leak.`authorization_scope_id_by_server
-       leak.`authorization_operation_by_server
-       leak.`authorization_timing_by_server
-       leak.`authorization_result_shape_by_server
   ++ onion_key_register_segment b leak.`query_db_id
   ++ harmony_hint_refresh_segment b leak.`query_db_id leak.`session_query_index
   ++ index_segment b leak.`query_db_id
